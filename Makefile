@@ -1,27 +1,46 @@
 CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11
 LDFLAGS  += -g
 
-SRCS = $(shell find src -name '*.cpp')
-TEST_SRCS = $(shell find test -name '*.cpp')
+SRCS = \
+	src/http.cpp \
+	src/http_request.cpp \
+	src/network.cpp \
+	src/parser.cpp \
+
+MAIN_SRCS = \
+	src/main.cpp \
+
+TEST_SRCS = \
+	test/test_parser.cpp \
+
+TEST_MAIN_SRCS = \
+	test/test_all.cpp
 
 OBJS = $(subst .cpp,.o,$(SRCS))
+MAIN_OBJS = $(subst .cpp,.o,$(MAIN_SRCS))
 TEST_OBJS = $(subst .cpp,.o,$(TEST_SRCS))
+TEST_MAIN_OBJS = $(subst .cpp,.o,$(TEST_MAIN_SRCS))
 
-.PHONY: all makedir test clean dist-clean
+.PHONY: all makedir main test clean dist-clean
 
-all: makedir test
+all: makedir main test
 
 makedir:
 	mkdir -p bin
 
-test: bin/test_all
+main: makedir bin/naughttpd bin/test_all
+
+test: main
 	bin/test_all
 
-bin/test_all: $(OBJS) $(TEST_OBJS)
+bin/naughttpd: $(OBJS) src/main.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+bin/test_all: $(OBJS) $(TEST_OBJS) test/test_all.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 depend: .depend
-.depend: $(SRCS) $(TEST_SRCS)
+.depend: $(SRCS) $(MAIN_SRCS) $(TEST_SRCS) $(TEST_MAIN_SRCS)
 	rm -f ./.depend
 	$(CXX) $(CXXFLAGS) -MM $^ >> ./.depend
 

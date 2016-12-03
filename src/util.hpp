@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <ostream>
 #include <algorithm>
 #include <functional>
 
@@ -31,6 +32,9 @@ struct ci_char_traits : public std::char_traits<char> {
     }
 };
 typedef std::basic_string<char, ci_char_traits> ci_string;
+inline std::ostream& operator<<(std::ostream& os, const ci_string& str) {
+    return os.write(str.data(), str.size());
+}
 
 inline int hex2int(char ch) {
     if ('0' <= ch && ch <= '9') return ch - '0';

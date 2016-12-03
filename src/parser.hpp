@@ -1,5 +1,4 @@
 #pragma once
-#include "http.hpp"
 #include "http_request.hpp"
 
 enum ParseResult {

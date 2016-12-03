@@ -1,8 +1,14 @@
 #pragma once
 #include <map>
 #include <string>
-#include "http.hpp"
+#include <ostream>
 #include "util.hpp"
+
+enum HTTPMethod {
+    HTTP_METHOD_UNKNOWN,
+    HTTP_METHOD_GET,
+    HTTP_METHOD_POST
+};
 
 struct HTTPRequest {
     // constants
@@ -30,7 +36,13 @@ struct HTTPRequest {
     std::map<ci_string, std::string> headers;
     std::string body;
 
-    // constructor & destructor
-    HTTPRequest();
+    // I/O
+    int fd_socket;
+    int fd_epoll;
+
+    // funcs
+    HTTPRequest(int sfd, int efd);
     ~HTTPRequest();
 };
+
+std::ostream &operator<<(std::ostream &out, const HTTPRequest &r);

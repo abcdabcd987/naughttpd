@@ -1,7 +1,5 @@
 #pragma once
 
-enum HTTPMethod {
-    HTTP_METHOD_UNKNOWN,
-    HTTP_METHOD_GET,
-    HTTP_METHOD_POST
-};
+#include "http_request.hpp"
+
+void do_request(HTTPRequest *r);
