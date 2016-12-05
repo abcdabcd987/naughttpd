@@ -1,5 +1,6 @@
 #include "http.hpp"
 #include "network.hpp"
+#include <signal.h>
 
 const int MAXEVENT = 1024;
 struct epoll_event events[MAXEVENT];
@@ -11,6 +12,7 @@ int main(int argc, char *argv[]) {
     }
 
     // set up
+    signal(SIGPIPE, SIG_IGN);
     int sfd = create_and_bind(argv[1]);
     make_socket_non_blocking(sfd);
     if (listen(sfd, SOMAXCONN) < 0) {
@@ -44,9 +46,9 @@ int main(int argc, char *argv[]) {
             {
                 // An error has occured on this fd, or the socket is not
                 // ready for reading (why were we notified then?)
-              fprintf(stderr, "epoll error\n");
-              close(r->fd_socket);
-              continue;
+                fprintf(stderr, "epoll error\n");
+                close_request(r);
+                continue;
             }
 
             if (sfd == r->fd_socket) {
@@ -65,6 +67,7 @@ int main(int argc, char *argv[]) {
                             abort();
                         }
                     }
+                    fprintf(stderr, "accept  fd=%d\n", infd);
                     make_socket_non_blocking(infd);
                     event.data.ptr = static_cast<void*>(new HTTPRequest(infd, efd));
                     event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
@@ -79,7 +82,7 @@ int main(int argc, char *argv[]) {
                 // completely, as we are running in edge-triggered mode
                 // and won't get a notification again for the same
                 // data.
-                do_request(static_cast<HTTPRequest*>(event.data.ptr));
+                do_request(r);
             }
         }
     }

@@ -12,7 +12,10 @@
 void close_request(HTTPRequest *r) {
     // closing a file descriptor will cause it to be removed from all epoll sets automatically
     // see: http://stackoverflow.com/questions/8707601/is-it-necessary-to-deregister-a-socket-from-epoll-before-closing-it
-    close(r->fd_socket);
+    fprintf(stderr, "close_request fd=%d\n", r->fd_socket);
+    if (close(r->fd_socket) < 0) {
+        perror("close");
+    }
     delete r;
 }
 
@@ -118,14 +121,15 @@ void do_request(HTTPRequest *r) {
         buf_remain = std::min(buf_remain, HTTPRequest::BUF_SIZE - r->buf_tail % HTTPRequest::BUF_SIZE);
         char *ptail = &r->buf[r->buf_tail % HTTPRequest::BUF_SIZE];
         int nread = read(r->fd_socket, ptail, buf_remain);
-        if (nread == -1) {
+        fprintf(stderr, "nread=%d, fd=%d\n", nread, r->fd_socket);
+        if (nread < 0) {
             // If errno == EAGAIN, that means we have read all
             // data. So go back to the main loop.
             if (errno != EAGAIN) {
                 perror("read");
                 abort();
             }
-            return;
+            break;
         } else if (nread == 0) {
             // End of file. The remote has closed the connection.
             close_request(r);
@@ -134,13 +138,25 @@ void do_request(HTTPRequest *r) {
 
         r->buf_tail += nread;
         ParseResult parse_result = parse(r);
-        if (parse_result == PARSE_RESULT_AGAIN)
+        if (parse_result == PARSE_RESULT_AGAIN) {
             continue;
-        else if (parse_result == PARSE_RESULT_INVALID)
+        } else if (parse_result == PARSE_RESULT_INVALID) {
+            fprintf(stderr, "PARSE_RESULT_INVALID  fd=%d\n", r->fd_socket);
             close_request(r);
+            return;
+        }
 
         serve_static(r);
-        close_request(r);
-        return;
+        r->clear();
+        // close_request(r);
+        // return;
+    }
+
+    struct epoll_event event;
+    event.data.ptr = static_cast<void*>(r);
+    event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+    if (epoll_ctl(r->fd_epoll, EPOLL_CTL_MOD, r->fd_socket, &event) < 0) {
+        perror("epoll_ctl");
+        abort();
     }
 }

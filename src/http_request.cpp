@@ -1,23 +1,22 @@
 #include "http_request.hpp"
 
 HTTPRequest::HTTPRequest(int sfd, int efd) :
-        // buffer
-        buf_head(0),
-        buf_tail(0),
-
-        // parser temporary variables
-        parser_state(0),
-
-        // I/O
         fd_socket(sfd),
         fd_epoll(efd)
 {
-
+    clear();
 }
 
 
 HTTPRequest::~HTTPRequest() {
     
+}
+
+void HTTPRequest::clear() {
+    buf_head = 0;
+    buf_tail = 0;
+    parser_state = 0;
+    headers.clear();
 }
 
 std::ostream &operator<<(std::ostream &out, const HTTPRequest &r) {

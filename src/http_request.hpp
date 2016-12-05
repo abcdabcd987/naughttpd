@@ -43,6 +43,7 @@ struct HTTPRequest {
     // funcs
     HTTPRequest(int sfd, int efd);
     ~HTTPRequest();
+    void clear();
 };
 
 std::ostream &operator<<(std::ostream &out, const HTTPRequest &r);
