@@ -4,8 +4,8 @@
 #include <sstream>
 #include <iostream>
 #include <unordered_map>
-#include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -92,26 +92,21 @@ void serve_static(HTTPRequest *r) {
         << "Content-Length: " << sbuf.st_size << "\r\n"
         << "\r\n";
     std::string hdr_str = hdr.str();
-    rio_writen(r->fd_socket, hdr_str.c_str(), hdr_str.size());
+    ssize_t writen = rio_writen(r->fd_socket, hdr_str.c_str(), hdr_str.size());
+    if (writen != hdr_str.size()) {
+        fprintf(stderr, "writen != hdr_str.size()\n");
+        return;
+    }
 
     int srcfd = open(filename.c_str(), O_RDONLY, 0);
     if (srcfd < 0) {
         perror("open");
-        abort();
     }
-    void *srcaddr = mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, srcfd, 0);
-    if (srcaddr == (void *) -1) {
-        perror("mmap");
-        abort();
+    if (sendfile(r->fd_socket, srcfd, NULL, sbuf.st_size) != sbuf.st_size) {
+        perror("sendfile");
     }
     if (close(srcfd) < 0) {
         perror("close");
-        abort();
-    }
-    ssize_t readn = rio_writen(r->fd_socket, srcaddr, sbuf.st_size);
-    munmap(srcaddr, sbuf.st_size);
-    if (readn != sbuf.st_size) {
-        fprintf(stderr, "readn = %lu != %lu = sbuf.st_size\n", readn, sbuf.st_size);
     }
 }
 
