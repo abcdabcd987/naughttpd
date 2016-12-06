@@ -1,12 +1,8 @@
 #include "http_request.hpp"
 
-HTTPRequest::HTTPRequest(int sfd, int efd) :
-        fd_socket(sfd),
-        fd_epoll(efd)
-{
+HTTPRequest::HTTPRequest() {
     clear();
 }
-
 
 HTTPRequest::~HTTPRequest() {
     

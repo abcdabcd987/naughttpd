@@ -4,24 +4,22 @@
 #include <sstream>
 #include <iostream>
 #include <unordered_map>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 void close_request(HTTPRequest *r) {
-    // closing a file descriptor will cause it to be removed from all epoll sets automatically
-    // see: http://stackoverflow.com/questions/8707601/is-it-necessary-to-deregister-a-socket-from-epoll-before-closing-it
     fprintf(stderr, "close_request fd=%d\n", r->fd_socket);
-    if (close(r->fd_socket) < 0) {
+    if (close(r->fd_socket) < 0)
         perror("close");
-    }
-    delete r;
 }
 
 const char* get_http_status(int status_code) {
     switch (status_code) {
         case 200: return "OK";
+        case 400: return "Bad Request";
         case 404: return "Not Found";
         case 301: return "Moved Permanently";
         case 302: return "Moved Temporarily";
@@ -67,8 +65,10 @@ void serve_error(HTTPRequest *r, int status_code) {
     std::string txt_str = txt.str();
     hdr << "HTTP/1.1 " << status_code << ' ' << status_name << "\r\n"
         << "Content-Type: text/html\r\n"
-        << "Content-Length: " << txt_str.size() << "\r\n"
-        << "\r\n";
+        << "Content-Length: " << txt_str.size() << "\r\n";
+    if (status_code != 400)
+        hdr << "Connection: keep-alive\r\n";
+    hdr << "\r\n";
     std::string hdr_str = hdr.str();
     rio_writen(r->fd_socket, hdr_str.c_str(), hdr_str.size());
     rio_writen(r->fd_socket, txt_str.c_str(), txt_str.size());
@@ -90,6 +90,7 @@ void serve_static(HTTPRequest *r) {
     hdr << "HTTP/1.1 200 OK\r\n"
         << "Content-Type: " << get_content_type(ext) << "\r\n"
         << "Content-Length: " << sbuf.st_size << "\r\n"
+        << "Connection: keep-alive\r\n"
         << "\r\n";
     std::string hdr_str = hdr.str();
     ssize_t writen = rio_writen(r->fd_socket, hdr_str.c_str(), hdr_str.size());
@@ -110,7 +111,7 @@ void serve_static(HTTPRequest *r) {
     }
 }
 
-void do_request(HTTPRequest *r) {
+DoRequestResult do_request(HTTPRequest *r) {
     for (;;) {
         size_t buf_remain = HTTPRequest::BUF_SIZE - (r->buf_tail - r->buf_head) - 1;
         buf_remain = std::min(buf_remain, HTTPRequest::BUF_SIZE - r->buf_tail % HTTPRequest::BUF_SIZE);
@@ -122,13 +123,12 @@ void do_request(HTTPRequest *r) {
             // data. So go back to the main loop.
             if (errno != EAGAIN) {
                 perror("read");
-                abort();
+                return DO_REQUEST_CLOSE;
             }
             break;
         } else if (nread == 0) {
             // End of file. The remote has closed the connection.
-            close_request(r);
-            return;
+            return DO_REQUEST_CLOSE;
         }
 
         r->buf_tail += nread;
@@ -137,8 +137,8 @@ void do_request(HTTPRequest *r) {
             continue;
         } else if (parse_result == PARSE_RESULT_INVALID) {
             fprintf(stderr, "PARSE_RESULT_INVALID  fd=%d\n", r->fd_socket);
-            close_request(r);
-            return;
+            serve_error(r, 400);
+            return DO_REQUEST_CLOSE;
         }
 
         serve_static(r);
@@ -147,11 +147,5 @@ void do_request(HTTPRequest *r) {
         // return;
     }
 
-    struct epoll_event event;
-    event.data.ptr = static_cast<void*>(r);
-    event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-    if (epoll_ctl(r->fd_epoll, EPOLL_CTL_MOD, r->fd_socket, &event) < 0) {
-        perror("epoll_ctl");
-        abort();
-    }
+    return DO_REQUEST_AGAIN;
 }

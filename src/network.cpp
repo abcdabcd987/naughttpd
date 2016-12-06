@@ -1,4 +1,14 @@
 #include "network.hpp"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/epoll.h>
 
 int create_and_bind(char *port) {
     struct addrinfo hints;
@@ -79,4 +89,19 @@ ssize_t rio_writen(int fd, const void *usrbuf, size_t n) {
     }
     
     return n;
+}
+
+int accept_connection(int sfd) {
+    int infd = accept(sfd, NULL, NULL);
+    if (infd < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return -1;
+        } else {
+            perror("accept");
+            abort();
+        }
+    }
+    fprintf(stderr, "accept  fd=%d\n", infd);
+    make_socket_non_blocking(infd);
+    return infd;
 }

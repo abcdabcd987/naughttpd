@@ -24,7 +24,7 @@ struct Message {
 
 void test_parser(const Message &m) {
     std::random_device rd;
-    HTTPRequest r(0, 0);
+    HTTPRequest r;
     for (std::string::size_type i = 0; i < m.raw.size(); ) {
         size_t len = rd() % std::min(30UL, m.raw.size() - i) + 1;
         for (size_t j = 0; j < len; ++j)

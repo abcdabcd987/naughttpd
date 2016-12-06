@@ -36,12 +36,15 @@ struct HTTPRequest {
     std::map<ci_string, std::string> headers;
     std::string body;
 
-    // I/O
+    // engine data
     int fd_socket;
-    int fd_epoll;
+    union EngineData {
+        int fd_epoll;
+    };
+    EngineData ngdata;
 
     // funcs
-    HTTPRequest(int sfd, int efd);
+    HTTPRequest();
     ~HTTPRequest();
     void clear();
 };

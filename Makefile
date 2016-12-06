@@ -2,6 +2,9 @@ CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11
 LDFLAGS  += -g
 
 SRCS = \
+	src/engine_epoll.cpp \
+	src/engine_poll.cpp \
+	src/engine_select.cpp \
 	src/http.cpp \
 	src/http_request.cpp \
 	src/network.cpp \
@@ -40,7 +43,7 @@ bin/test_all: $(OBJS) $(TEST_OBJS) test/test_all.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 depend: .depend
-.depend: $(SRCS) $(MAIN_SRCS) $(TEST_SRCS) $(TEST_MAIN_SRCS)
+.depend: $(shell find . -name '*.cpp')
 	rm -f ./.depend
 	$(CXX) $(CXXFLAGS) -MM $^ >> ./.depend
 
