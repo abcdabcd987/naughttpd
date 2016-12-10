@@ -35,6 +35,7 @@ struct HTTPRequest {
     unsigned short http_version_minor;
     std::map<ci_string, std::string> headers;
     std::string body;
+    bool keep_alive;
 
     // engine data
     int fd_socket;

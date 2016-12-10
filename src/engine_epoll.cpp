@@ -11,6 +11,7 @@
 #include "network.hpp"
 
 void engine_epoll(int sfd, int backlog) {
+    make_socket_non_blocking(sfd);
     struct epoll_event *events = static_cast<struct epoll_event*>(std::calloc(sizeof(struct epoll_event), backlog));
     int efd = epoll_create1(0);
     if (efd < 0) {

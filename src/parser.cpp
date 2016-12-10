@@ -25,6 +25,13 @@ bool fill_request_info(HTTPRequest *r) {
     if (sharp != std::string::npos)
         r->fragment = r->uri.substr(sharp + 1);
 
+    auto iter = r->headers.find("Connection");
+    if (r->http_version_major == 1 && r->http_version_minor == 0) {
+        r->keep_alive = iter != r->headers.end() && iter->second == "Keep-Alive";
+    } else {
+        r->keep_alive = iter == r->headers.end();
+    }
+
     return true;
 }
 

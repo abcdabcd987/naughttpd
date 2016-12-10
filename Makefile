@@ -1,14 +1,19 @@
-CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11
+CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11 -pthread
 LDFLAGS  += -g
 
 SRCS = \
 	src/engine_epoll.cpp \
+	src/engine_fork.cpp \
+	src/engine_naive.cpp \
 	src/engine_poll.cpp \
+	src/engine_pool.cpp \
 	src/engine_select.cpp \
+	src/engine_thread.cpp \
 	src/http.cpp \
 	src/http_request.cpp \
 	src/network.cpp \
 	src/parser.cpp \
+	src/threadpool.cpp \
 
 MAIN_SRCS = \
 	src/main.cpp \

@@ -12,8 +12,12 @@ struct EnginePair {
     EngineFunction func;
 };
 const EnginePair engines[] = {
+    { "naive" , engine_naive  },
+    { "fork"  , engine_fork   },
+    { "thread", engine_thread },
+    { "pool"  , engine_pool   },
     { "select", engine_select },
-    { "poll",   engine_poll   },
+    { "poll"  , engine_poll   },
     { "epoll" , engine_epoll  }
 };
 
@@ -40,7 +44,6 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "listen backlog = %d\n", backlog);
     signal(SIGPIPE, SIG_IGN);
     int sfd = create_and_bind(argv[1]);
-    make_socket_non_blocking(sfd);
     if (listen(sfd, backlog) < 0) {
         perror("listen");
         abort();

@@ -11,6 +11,7 @@
 #include "network.hpp"
 
 void engine_poll(int sfd, int backlog) {
+    make_socket_non_blocking(sfd);
     HTTPRequest *reqs = new HTTPRequest[backlog];
     struct pollfd *pollfds = static_cast<struct pollfd *>(std::calloc(sizeof(struct pollfd), backlog));
     pollfds[0].fd = sfd;

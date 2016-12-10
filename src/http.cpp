@@ -90,7 +90,7 @@ void serve_static(HTTPRequest *r) {
     hdr << "HTTP/1.1 200 OK\r\n"
         << "Content-Type: " << get_content_type(ext) << "\r\n"
         << "Content-Length: " << sbuf.st_size << "\r\n"
-        << "Connection: keep-alive\r\n"
+        << "Connection: " << (r->keep_alive ? "keep-alive" : "close") << "\r\n"
         << "\r\n";
     std::string hdr_str = hdr.str();
     ssize_t writen = rio_writen(r->fd_socket, hdr_str.c_str(), hdr_str.size());
@@ -142,9 +142,10 @@ DoRequestResult do_request(HTTPRequest *r) {
         }
 
         serve_static(r);
+        bool keep_alive = r->keep_alive;
         r->clear();
-        // close_request(r);
-        // return;
+        if (!keep_alive)
+            return DO_REQUEST_CLOSE;
     }
 
     return DO_REQUEST_AGAIN;

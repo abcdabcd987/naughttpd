@@ -11,6 +11,7 @@
 #include "network.hpp"
 
 void engine_select(int sfd, int backlog) {
+    make_socket_non_blocking(sfd);
     fprintf(stderr, "FD_SETSIZE = %d\n", FD_SETSIZE);
     HTTPRequest *reqs = new HTTPRequest[backlog];
     fd_set socks, readfs, exceptfds;
