@@ -24,11 +24,10 @@ static void process(void *arg) {
     }
 }
 
-void engine_pool(int sfd, int backlog) {
+void engine_pool(int sfd, int backlog, int num_worker) {
     size_t num_cpu = sysconf(_SC_NPROCESSORS_ONLN);
-    size_t num_worker = num_cpu * 2;
-    fprintf(stderr, "num_worker = %lu\n", num_worker);
-    ThreadPool pool(num_worker);
+    fprintf(stderr, "num_worker = %d\n", num_worker);
+    ThreadPool pool(static_cast<size_t>(num_worker));
     for (;;) {
         int infd = accept(sfd, NULL, NULL);
         if (infd < 0) {

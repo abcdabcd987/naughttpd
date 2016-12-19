@@ -10,7 +10,7 @@
 #include "engines.hpp"
 #include "network.hpp"
 
-void engine_select(int sfd, int backlog) {
+void engine_select(int sfd, int backlog, int num_worker) {
     make_socket_non_blocking(sfd);
     fprintf(stderr, "FD_SETSIZE = %d\n", FD_SETSIZE);
     HTTPRequest *reqs = new HTTPRequest[backlog];

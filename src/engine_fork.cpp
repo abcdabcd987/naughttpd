@@ -8,7 +8,7 @@
 #include "engines.hpp"
 #include "network.hpp"
 
-void engine_fork(int sfd, int backlog) {
+void engine_fork(int sfd, int backlog, int num_worker) {
     for (;;) {
         int infd = accept(sfd, NULL, NULL);
         if (infd < 0) {

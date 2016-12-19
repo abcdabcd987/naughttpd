@@ -3,6 +3,8 @@ LDFLAGS  += -g
 
 SRCS = \
 	src/engine_epoll.cpp \
+	src/engine_epoll_reuseport.cpp \
+	src/engine_epoll_thread.cpp \
 	src/engine_fork.cpp \
 	src/engine_naive.cpp \
 	src/engine_poll.cpp \

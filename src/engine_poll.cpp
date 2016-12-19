@@ -10,7 +10,7 @@
 #include "engines.hpp"
 #include "network.hpp"
 
-void engine_poll(int sfd, int backlog) {
+void engine_poll(int sfd, int backlog, int num_worker) {
     make_socket_non_blocking(sfd);
     HTTPRequest *reqs = new HTTPRequest[backlog];
     struct pollfd *pollfds = static_cast<struct pollfd *>(std::calloc(sizeof(struct pollfd), backlog));

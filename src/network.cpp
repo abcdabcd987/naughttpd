@@ -11,7 +11,7 @@
 #include <sys/epoll.h>
 #include <netinet/tcp.h>
 
-int create_and_bind(char *port) {
+int create_and_bind(char *port, bool reuseport) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int s, sfd;
@@ -32,8 +32,8 @@ int create_and_bind(char *port) {
         if (sfd == -1)
             continue;
 
-        int reuseaddr = 1;
-        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int)) < 0)
+        int optval = 1;
+        if (setsockopt(sfd, SOL_SOCKET, reuseport ? SO_REUSEPORT : SO_REUSEADDR, &optval, sizeof(int)) < 0)
             continue;
   
         s = bind(sfd, rp->ai_addr, rp->ai_addrlen);
