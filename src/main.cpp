@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
         help(argc, argv);
 
     // set up
-    int backlog = 1<<13;
+    int backlog = 511;
     fprintf(stderr, "listen backlog = %d\n", backlog);
     signal(SIGPIPE, SIG_IGN);
     int sfd = create_and_bind(argv[1]);

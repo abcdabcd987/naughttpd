@@ -1,4 +1,4 @@
-CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11 -pthread
+CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11 -pthread -O3
 LDFLAGS  += -g
 
 SRCS = \

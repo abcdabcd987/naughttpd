@@ -43,7 +43,7 @@ void engine_epoll(int sfd, int backlog) {
             {
                 // An error has occured on this fd, or the socket is not
                 // ready for reading (why were we notified then?)
-                fprintf(stderr, "epoll error\n");
+                // fprintf(stderr, "epoll error\n");
                 close_request(r);
                 delete r;
                 continue;

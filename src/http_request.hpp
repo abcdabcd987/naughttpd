@@ -12,7 +12,7 @@ enum HTTPMethod {
 
 struct HTTPRequest {
     // constants
-    static constexpr size_t BUF_SIZE = 8192;
+    static constexpr size_t BUF_SIZE = 1024;
 
     // buffer
     char buf[BUF_SIZE];

@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 void close_request(HTTPRequest *r) {
-    fprintf(stderr, "close_request fd=%d\n", r->fd_socket);
+    // fprintf(stderr, "close_request fd=%d\n", r->fd_socket);
     if (close(r->fd_socket) < 0)
         perror("close");
 }
@@ -75,16 +75,25 @@ void serve_error(HTTPRequest *r, int status_code) {
 }
 
 void serve_static(HTTPRequest *r) {
-    std::cout << "==================serve_static==================" << std::endl << *r;
+    // std::cout << "==================serve_static==================" << std::endl << *r;
 
     std::string filename = "./" + r->request_path;
     size_t pos_rdot = filename.rfind('.');
     std::string ext = pos_rdot == std::string::npos ? "" : filename.substr(pos_rdot+1);
-    struct stat sbuf;
-    if (stat(filename.c_str(), &sbuf) < 0) {
+
+    int srcfd = open(filename.c_str(), O_RDONLY, 0);
+    if (srcfd < 0) {
         serve_error(r, 404);
         return;
     }
+
+    struct stat sbuf;
+    if (fstat(srcfd, &sbuf) < 0) {
+        perror("fstat");
+        abort();
+    }
+
+    tcp_cork_on(r->fd_socket);
 
     std::ostringstream hdr;
     hdr << "HTTP/1.1 200 OK\r\n"
@@ -99,16 +108,15 @@ void serve_static(HTTPRequest *r) {
         return;
     }
 
-    int srcfd = open(filename.c_str(), O_RDONLY, 0);
-    if (srcfd < 0) {
-        perror("open");
-    }
     if (sendfile(r->fd_socket, srcfd, NULL, sbuf.st_size) != sbuf.st_size) {
         perror("sendfile");
     }
+
     if (close(srcfd) < 0) {
         perror("close");
     }
+
+    tcp_cork_off(r->fd_socket);
 }
 
 DoRequestResult do_request(HTTPRequest *r) {
@@ -117,7 +125,7 @@ DoRequestResult do_request(HTTPRequest *r) {
         buf_remain = std::min(buf_remain, HTTPRequest::BUF_SIZE - r->buf_tail % HTTPRequest::BUF_SIZE);
         char *ptail = &r->buf[r->buf_tail % HTTPRequest::BUF_SIZE];
         int nread = read(r->fd_socket, ptail, buf_remain);
-        fprintf(stderr, "nread=%d, fd=%d\n", nread, r->fd_socket);
+        // fprintf(stderr, "nread=%d, fd=%d\n", nread, r->fd_socket);
         if (nread < 0) {
             // If errno == EAGAIN, that means we have read all
             // data. So go back to the main loop.
@@ -136,7 +144,7 @@ DoRequestResult do_request(HTTPRequest *r) {
         if (parse_result == PARSE_RESULT_AGAIN) {
             continue;
         } else if (parse_result == PARSE_RESULT_INVALID) {
-            fprintf(stderr, "PARSE_RESULT_INVALID  fd=%d\n", r->fd_socket);
+            // fprintf(stderr, "PARSE_RESULT_INVALID  fd=%d\n", r->fd_socket);
             serve_error(r, 400);
             return DO_REQUEST_CLOSE;
         }

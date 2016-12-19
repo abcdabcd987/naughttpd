@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <netinet/tcp.h>
 
 int create_and_bind(char *port) {
     struct addrinfo hints;
@@ -113,16 +114,31 @@ ssize_t rio_writen(int fd, const void *usrbuf, size_t n) {
 }
 
 int accept_connection(int sfd) {
-    int infd = accept(sfd, NULL, NULL);
+    int infd = accept4(sfd, NULL, NULL, SOCK_NONBLOCK);
     if (infd < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return -1;
         } else {
-            perror("accept");
+            perror("accept4");
             abort();
         }
     }
-    fprintf(stderr, "accept  fd=%d\n", infd);
-    make_socket_non_blocking(infd);
+    // fprintf(stderr, "accept  fd=%d\n", infd);
     return infd;
+}
+
+void tcp_cork_on(int fd) {
+    int optval = 1;
+    if (setsockopt(fd, SOL_TCP, TCP_CORK, &optval, sizeof(optval)) < 0) {
+        perror("setsockopt");
+        abort();
+    }
+}
+
+void tcp_cork_off(int fd) {
+    int optval = 0;
+    if (setsockopt(fd, SOL_TCP, TCP_CORK, &optval, sizeof(optval)) < 0) {
+        perror("setsockopt");
+        abort();
+    }
 }
