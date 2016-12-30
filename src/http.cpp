@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+bool enable_tcp_cork;
+
 void close_request(HTTPRequest *r) {
     // fprintf(stderr, "close_request fd=%d\n", r->fd_socket);
     if (close(r->fd_socket) < 0)
@@ -93,7 +95,8 @@ void serve_static(HTTPRequest *r) {
         abort();
     }
 
-    tcp_cork_on(r->fd_socket);
+    if (enable_tcp_cork)
+        tcp_cork_on(r->fd_socket);
 
     std::ostringstream hdr;
     hdr << "HTTP/1.1 200 OK\r\n"
@@ -116,7 +119,8 @@ void serve_static(HTTPRequest *r) {
         perror("close");
     }
 
-    tcp_cork_off(r->fd_socket);
+    if (enable_tcp_cork)
+        tcp_cork_off(r->fd_socket);
 }
 
 DoRequestResult do_request(HTTPRequest *r) {

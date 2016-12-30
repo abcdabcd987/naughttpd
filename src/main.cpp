@@ -26,27 +26,32 @@ const EngineTuple engines[] = {
 };
 
 void help(int argc, char *argv[]) {
-    fprintf(stderr, "usage: %s port engine num_worker\n", argv[0]);
+    fprintf(stderr, "usage: %s port engine num_worker backlog tcp_cork\n", argv[0]);
+    fprintf(stderr, "e.g. %s 8080 epoll_thread 4 511 on\n", argv[0]);
     fprintf(stderr, "available engines:\n");
     for (size_t i = 0; i < sizeof(engines) / sizeof(EngineTuple); ++i)
-        fprintf(stderr, "    %s\n", engines[i].name);
+        fprintf(stderr, "       %s\n", engines[i].name);
     exit(EXIT_FAILURE);
 }
 
+extern bool enable_tcp_cork;
+
 int main(int argc, char *argv[]) {
-    if (argc != 4)
+    if (argc != 6)
         help(argc, argv);
     const EngineTuple *e = NULL;
     for (size_t i = 0; i < sizeof(engines) / sizeof(EngineTuple); ++i)
         if (strcmp(engines[i].name, argv[2]) == 0)
             e = &engines[i];
     int num_worker = std::atoi(argv[3]);
+    enable_tcp_cork = strcmp(argv[5], "on") == 0;
     if (!e || (num_worker != 1 && !e->multiworker))
         help(argc, argv);
 
     // listen
-    int backlog = 511;
+    int backlog = std::atoi(argv[4]);
     fprintf(stderr, "listen backlog = %d\n", backlog);
+    fprintf(stderr, "tcp_cork %s\n", enable_tcp_cork ? "on" : "off");
     signal(SIGPIPE, SIG_IGN);
     int sfd = -1;
     if (e->listen) {
