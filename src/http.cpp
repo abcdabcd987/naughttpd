@@ -5,15 +5,17 @@
 #include <iostream>
 #include <unordered_map>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 bool enable_tcp_cork;
+bool enable_tcp_nodelay;
+SendfileMethod sendfile_method;
 
 void close_request(HTTPRequest *r) {
-    // fprintf(stderr, "close_request fd=%d\n", r->fd_socket);
     if (close(r->fd_socket) < 0)
         perror("close");
 }
@@ -77,8 +79,6 @@ void serve_error(HTTPRequest *r, int status_code) {
 }
 
 void serve_static(HTTPRequest *r) {
-    // std::cout << "==================serve_static==================" << std::endl << *r;
-
     std::string filename = "./" + r->request_path;
     size_t pos_rdot = filename.rfind('.');
     std::string ext = pos_rdot == std::string::npos ? "" : filename.substr(pos_rdot+1);
@@ -95,6 +95,8 @@ void serve_static(HTTPRequest *r) {
         abort();
     }
 
+    if (enable_tcp_nodelay)
+        tcp_nodelay_on(r->fd_socket);
     if (enable_tcp_cork)
         tcp_cork_on(r->fd_socket);
 
@@ -111,8 +113,35 @@ void serve_static(HTTPRequest *r) {
         return;
     }
 
-    if (sendfile(r->fd_socket, srcfd, NULL, sbuf.st_size) != sbuf.st_size) {
-        perror("sendfile");
+    if (sendfile_method == SENDFILE_SENDFILE) {
+        if (sendfile(r->fd_socket, srcfd, NULL, sbuf.st_size) != sbuf.st_size) {
+            perror("sendfile");
+        }
+    } else if (sendfile_method == SENDFILE_MMAP) {
+        void *srcaddr = mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, srcfd, 0);
+        if (srcaddr == (void *) -1) {
+            perror("mmap");
+        }
+        if (rio_writen(r->fd_socket, srcaddr, sbuf.st_size) != sbuf.st_size) {
+            fprintf(stderr, "not complete rio_written");
+        }
+        if (munmap(srcaddr, sbuf.st_size) < 0) {
+            perror("munmap");
+        }
+    } else {
+        const int bufsize = 4<<10;
+        char buf[bufsize];
+        for (writen = 0; writen < sbuf.st_size; ) {
+            ssize_t readn = read(srcfd, buf, bufsize);
+            if (readn < 0) {
+                perror("read");
+                break;
+            }
+            if (rio_writen(r->fd_socket, buf, readn) != readn) {
+                fprintf(stderr, "not complete rio_written");
+            }
+            writen += readn;
+        }
     }
 
     if (close(srcfd) < 0) {
@@ -120,7 +149,7 @@ void serve_static(HTTPRequest *r) {
     }
 
     if (enable_tcp_cork)
-        tcp_cork_off(r->fd_socket);
+        tcp_cork_off(r->fd_socket); // send messages out
 }
 
 DoRequestResult do_request(HTTPRequest *r) {
@@ -129,7 +158,6 @@ DoRequestResult do_request(HTTPRequest *r) {
         buf_remain = std::min(buf_remain, HTTPRequest::BUF_SIZE - r->buf_tail % HTTPRequest::BUF_SIZE);
         char *ptail = &r->buf[r->buf_tail % HTTPRequest::BUF_SIZE];
         int nread = read(r->fd_socket, ptail, buf_remain);
-        // fprintf(stderr, "nread=%d, fd=%d\n", nread, r->fd_socket);
         if (nread < 0) {
             // If errno == EAGAIN, that means we have read all
             // data. So go back to the main loop.
@@ -148,7 +176,6 @@ DoRequestResult do_request(HTTPRequest *r) {
         if (parse_result == PARSE_RESULT_AGAIN) {
             continue;
         } else if (parse_result == PARSE_RESULT_INVALID) {
-            // fprintf(stderr, "PARSE_RESULT_INVALID  fd=%d\n", r->fd_socket);
             serve_error(r, 400);
             return DO_REQUEST_CLOSE;
         }

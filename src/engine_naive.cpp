@@ -8,7 +8,7 @@
 #include "engines.hpp"
 #include "network.hpp"
 
-void engine_naive(int sfd, int backlog, int num_worker) {
+void engine_naive(int sfd, int backlog, int _) {
     HTTPRequest r;
     for (;;) {
         int infd = accept(sfd, NULL, NULL);

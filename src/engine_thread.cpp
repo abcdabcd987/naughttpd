@@ -23,7 +23,7 @@ void *process(void *arg) {
     return NULL;
 }
 
-void engine_thread(int sfd, int backlog, int num_worker) {
+void engine_thread(int sfd, int backlog, int _) {
     for (;;) {
         int infd = accept(sfd, NULL, NULL);
         if (infd < 0) {

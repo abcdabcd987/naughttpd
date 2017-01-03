@@ -1,20 +1,14 @@
-#include <cstring>
+#include <cstdio>
 #include <cstdlib>
 #include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/epoll.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include "http.hpp"
 #include "engines.hpp"
 #include "network.hpp"
 
-void engine_epoll_reuseport(int port, int backlog, int num_worker) {
-    char str_port[10];
-    snprintf(str_port, 10, "%d", port);
+void engine_wrapper_reuseport(EngineFunction engine, int port, int backlog, int num_worker) {
     for (int i = 0; i < num_worker; ++i) {
         pid_t pid = fork();
         if (pid < 0) {
@@ -22,12 +16,12 @@ void engine_epoll_reuseport(int port, int backlog, int num_worker) {
             abort();
         } else if (pid == 0) {
             // child
-            int sfd = create_and_bind(str_port, true);
+            int sfd = create_and_bind(port, true);
             if (listen(sfd, backlog) < 0) {
                 perror("listen");
                 abort();
             }
-            engine_epoll(sfd, backlog, num_worker);
+            engine(sfd, backlog, 1);
             return;
         }
     }

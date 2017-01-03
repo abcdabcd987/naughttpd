@@ -1,16 +1,11 @@
-#include <cstring>
+#include <cstdio>
 #include <cstdlib>
 #include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/epoll.h>
-#include <unistd.h>
-#include "http.hpp"
+#include <pthread.h>
 #include "engines.hpp"
-#include "network.hpp"
 
 struct _worker_arg_t {
+    EngineFunction engine;
     int sfd;
     int backlog;
     int num_worker;
@@ -18,11 +13,11 @@ struct _worker_arg_t {
 
 static void* worker(void *args) {
     _worker_arg_t *p = static_cast<_worker_arg_t*>(args);
-    engine_epoll(p->sfd, p->backlog, p->num_worker);
+    p->engine(p->sfd, p->backlog, 1);
 }
 
-void engine_epoll_thread(int sfd, int backlog, int num_worker) {
-    _worker_arg_t args = { sfd, backlog, num_worker };
+void engine_wrapper_thread(EngineFunction engine, int sfd, int backlog, int num_worker) {
+    _worker_arg_t args = { engine, sfd, backlog, num_worker };
     pthread_t threads[num_worker];
     for (int i = 0; i < num_worker; ++i)
         if (pthread_create(&threads[i], NULL, worker, static_cast<void*>(&args)) < 0) {

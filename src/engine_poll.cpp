@@ -10,7 +10,7 @@
 #include "engines.hpp"
 #include "network.hpp"
 
-void engine_poll(int sfd, int backlog, int num_worker) {
+void engine_poll(int sfd, int backlog, int _) {
     make_socket_non_blocking(sfd);
     HTTPRequest *reqs = new HTTPRequest[backlog];
     struct pollfd *pollfds = static_cast<struct pollfd *>(std::calloc(sizeof(struct pollfd), backlog));
@@ -29,7 +29,6 @@ void engine_poll(int sfd, int backlog, int num_worker) {
             if (!(pfd->revents & POLLIN))
             {
                 // socket exception
-                fprintf(stderr, "exception fd = %d, POLLERR=%d, POLLHUP=%d, POLLNVAL=%d\n", pfd->fd, pfd->revents & POLLERR, pfd->revents & POLLHUP, pfd->revents & POLLNVAL);
                 close_request(&reqs[pfd->fd]);
                 memcpy(&pollfds[i--], &pollfds[--nfds], sizeof(struct pollfd));
                 continue;

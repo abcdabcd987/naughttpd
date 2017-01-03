@@ -10,7 +10,7 @@
 #include "engines.hpp"
 #include "network.hpp"
 
-void engine_select(int sfd, int backlog, int num_worker) {
+void engine_select(int sfd, int backlog, int _) {
     make_socket_non_blocking(sfd);
     fprintf(stderr, "FD_SETSIZE = %d\n", FD_SETSIZE);
     HTTPRequest *reqs = new HTTPRequest[backlog];
@@ -28,7 +28,6 @@ void engine_select(int sfd, int backlog, int num_worker) {
         for (int i = 0; i <= maxsock; ++i) {
             if (FD_ISSET(i, &exceptfds)) {
                 // socket exception
-                fprintf(stderr, "exception fd = %d\n", i);
                 HTTPRequest *r = &reqs[i];
                 FD_CLR(i, &socks);
                 close_request(r);
