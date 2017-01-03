@@ -46,7 +46,9 @@ def main():
         time.sleep(2)
         wrk = subprocess.Popen(cmd_wrk, stdin=devnull, stdout=subprocess.PIPE, stderr=devnull)
         text, _ = wrk.communicate()
-        httpd.terminate()
+        httpd.kill()
+        wrk.wait()
+        httpd.wait()
 
         ts = text.split()
         latency = ts[ts.index('Latency') + 1]
