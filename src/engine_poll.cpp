@@ -26,7 +26,7 @@ void engine_poll(int sfd, int backlog, int _) {
             struct pollfd *pfd = &pollfds[i];
             if (pfd->revents == 0)
                 continue;
-            if (!(pfd->revents & POLLIN))
+            if (!(pfd->revents & POLLIN) && !(pfd->revents & POLLOUT))
             {
                 // socket exception
                 close_request(&reqs[pfd->fd]);
@@ -50,7 +50,11 @@ void engine_poll(int sfd, int backlog, int _) {
                 HTTPRequest *r = &reqs[pfd->fd];
                 DoRequestResult res = do_request(r);
                 switch (res) {
-                    case DO_REQUEST_AGAIN:
+                    case DO_REQUEST_READ_AGAIN:
+                        pfd->events = POLLIN;
+                        break;
+                    case DO_REQUEST_WRITE_AGAIN:
+                        pfd->events = POLLOUT;
                         break;
                     case DO_REQUEST_CLOSE:
                         close_request(r);

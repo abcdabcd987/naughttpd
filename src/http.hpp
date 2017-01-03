@@ -3,7 +3,8 @@
 #include "http_request.hpp"
 
 enum DoRequestResult {
-    DO_REQUEST_AGAIN,
+    DO_REQUEST_READ_AGAIN = 0,
+    DO_REQUEST_WRITE_AGAIN,
     DO_REQUEST_CLOSE
 };
 enum SendfileMethod {

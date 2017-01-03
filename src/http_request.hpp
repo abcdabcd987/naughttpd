@@ -44,6 +44,15 @@ struct HTTPRequest {
     };
     EngineData ngdata;
 
+    // do_request() internal variables
+    int do_request_state;
+    int srcfd;
+    size_t file_size;
+    size_t writen;
+    off_t offset;
+    size_t readn;
+    void *srcaddr;
+
     // funcs
     HTTPRequest();
     ~HTTPRequest();

@@ -78,6 +78,49 @@ void serve_error(HTTPRequest *r, int status_code) {
     rio_writen(r->fd_socket, txt_str.c_str(), txt_str.size());
 }
 
+enum DoRequestState {
+    DOREQUEST_READ = 0,
+    DOREQUEST_SERVE_STATIC,
+    DOREQUEST_SENDFILE,
+    DOREQUEST_FINISHING,
+    DOREQUEST_LOOP,
+    DOREQUEST_CLOSE,
+    DOREQUEST_READ_AGAIN,
+};
+
+void do_request_read(HTTPRequest *r) {
+    size_t buf_remain = HTTPRequest::BUF_SIZE - (r->buf_tail - r->buf_head) - 1;
+    buf_remain = std::min(buf_remain, HTTPRequest::BUF_SIZE - r->buf_tail % HTTPRequest::BUF_SIZE);
+    char *ptail = &r->buf[r->buf_tail % HTTPRequest::BUF_SIZE];
+    int nread = read(r->fd_socket, ptail, buf_remain);
+    if (nread < 0) {
+        // If errno == EAGAIN, that means we have read all
+        // data. So go back to the main loop.
+        if (errno != EAGAIN) {
+            r->do_request_state = DOREQUEST_CLOSE;
+            return;
+        }
+        r->do_request_state = DOREQUEST_READ_AGAIN;
+        return;
+    } else if (nread == 0) {
+        // End of file. The remote has closed the connection.
+        r->do_request_state = DOREQUEST_CLOSE;
+        return;
+    }
+
+    r->buf_tail += nread;
+    ParseResult parse_result = parse(r);
+    if (parse_result == PARSE_RESULT_AGAIN) {
+        return;
+    } else if (parse_result == PARSE_RESULT_INVALID) {
+        serve_error(r, 400);
+        r->do_request_state = DOREQUEST_CLOSE;
+        return;
+    }
+
+    r->do_request_state = DOREQUEST_SERVE_STATIC;
+}
+
 void serve_static(HTTPRequest *r) {
     std::string filename = "./" + r->request_path;
     size_t pos_rdot = filename.rfind('.');
@@ -86,13 +129,15 @@ void serve_static(HTTPRequest *r) {
     int srcfd = open(filename.c_str(), O_RDONLY, 0);
     if (srcfd < 0) {
         serve_error(r, 404);
+        r->do_request_state = DOREQUEST_READ;
         return;
     }
 
     struct stat sbuf;
     if (fstat(srcfd, &sbuf) < 0) {
         perror("fstat");
-        abort();
+        r->do_request_state = DOREQUEST_READ;
+        return;
     }
 
     if (enable_tcp_nodelay)
@@ -110,82 +155,126 @@ void serve_static(HTTPRequest *r) {
     ssize_t writen = rio_writen(r->fd_socket, hdr_str.c_str(), hdr_str.size());
     if (writen != hdr_str.size()) {
         fprintf(stderr, "writen != hdr_str.size()\n");
+        r->do_request_state = DOREQUEST_READ;
         return;
     }
 
-    if (sendfile_method == SENDFILE_SENDFILE) {
-        if (sendfile(r->fd_socket, srcfd, NULL, sbuf.st_size) != sbuf.st_size) {
-            perror("sendfile");
-        }
-    } else if (sendfile_method == SENDFILE_MMAP) {
+    r->do_request_state = DOREQUEST_SENDFILE;
+    r->srcfd = srcfd;
+    r->file_size = sbuf.st_size;
+    r->writen = 0;
+    r->offset = 0;
+    r->buf_head = 0;
+    r->buf_tail = 0;
+    if (sendfile_method == SENDFILE_MMAP) {
         void *srcaddr = mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, srcfd, 0);
         if (srcaddr == (void *) -1) {
             perror("mmap");
+            r->do_request_state = DOREQUEST_READ;
+            return;
         }
-        if (rio_writen(r->fd_socket, srcaddr, sbuf.st_size) != sbuf.st_size) {
-            fprintf(stderr, "not complete rio_written");
+        r->srcaddr = srcaddr;
+    }
+}
+
+void serve_static_sendfile(HTTPRequest *r) {
+    if (sendfile_method == SENDFILE_SENDFILE) {
+        size_t &writen = r->writen;
+        while (writen < r->file_size) {
+            ssize_t n = sendfile(r->fd_socket, r->srcfd, &r->offset, r->file_size);
+            if (n < 0) {
+                if (errno == EAGAIN)
+                    return;
+                perror("sendfile");
+                r->do_request_state = DOREQUEST_READ;
+                return;
+            }
+            writen += n;
         }
-        if (munmap(srcaddr, sbuf.st_size) < 0) {
+    } else if (sendfile_method == SENDFILE_MMAP) {
+        size_t &writen = r->writen;
+        while (writen < r->file_size) {
+            char *start =(char*)r->srcaddr + writen;
+            ssize_t n = write(r->fd_socket, (void*)start, r->file_size - writen);
+            if (n < 0) {
+                if (errno == EAGAIN)
+                    return;
+                perror("write");
+                r->do_request_state = DOREQUEST_READ;
+                return;
+            }
+            writen += n;
+        }
+        if (munmap(r->srcaddr, r->file_size) < 0) {
             perror("munmap");
         }
     } else {
-        const int bufsize = 4<<10;
-        char buf[bufsize];
-        for (writen = 0; writen < sbuf.st_size; ) {
-            ssize_t readn = read(srcfd, buf, bufsize);
+        if (r->buf_tail == r->buf_head) {
+            // buffer is empty. read more.
+            ssize_t readn = read(r->srcfd, r->buf, HTTPRequest::BUF_SIZE);
             if (readn < 0) {
-                perror("read");
-                break;
+                perror("readn");
+                r->do_request_state = DOREQUEST_READ;
+                return;
             }
-            if (rio_writen(r->fd_socket, buf, readn) != readn) {
-                fprintf(stderr, "not complete rio_written");
-            }
-            writen += readn;
+            r->buf_head = 0;
+            r->buf_tail = readn;
         }
+
+        while (r->buf_head < r->buf_tail) {
+            ssize_t n = write(r->fd_socket, r->buf + r->buf_head, r->buf_tail - r->buf_head);
+            if (n < 0) {
+                if (errno == EAGAIN)
+                    return;
+                perror("write");
+                r->do_request_state = DOREQUEST_READ;
+                return;
+            }
+            r->buf_head += n;
+            r->writen += n;
+        }
+
+        if (r->writen != r->file_size)
+            return;
     }
 
-    if (close(srcfd) < 0) {
+    if (close(r->srcfd) < 0) {
         perror("close");
     }
-
     if (enable_tcp_cork)
         tcp_cork_off(r->fd_socket); // send messages out
+    r->do_request_state = DOREQUEST_FINISHING;
+    return;
 }
 
 DoRequestResult do_request(HTTPRequest *r) {
     for (;;) {
-        size_t buf_remain = HTTPRequest::BUF_SIZE - (r->buf_tail - r->buf_head) - 1;
-        buf_remain = std::min(buf_remain, HTTPRequest::BUF_SIZE - r->buf_tail % HTTPRequest::BUF_SIZE);
-        char *ptail = &r->buf[r->buf_tail % HTTPRequest::BUF_SIZE];
-        int nread = read(r->fd_socket, ptail, buf_remain);
-        if (nread < 0) {
-            // If errno == EAGAIN, that means we have read all
-            // data. So go back to the main loop.
-            if (errno != EAGAIN) {
-                perror("read");
+        switch (r->do_request_state) {
+            case DOREQUEST_READ:
+                do_request_read(r);
+                break;
+            case DOREQUEST_SERVE_STATIC:
+                serve_static(r);
+                break;
+            case DOREQUEST_SENDFILE:
+                serve_static_sendfile(r);
+                if (r->do_request_state == DOREQUEST_SENDFILE)
+                    return DO_REQUEST_WRITE_AGAIN;
+                break;
+            case DOREQUEST_FINISHING:
+                r->clear();
+                r->do_request_state = r->keep_alive ? DOREQUEST_READ : DOREQUEST_CLOSE;
+                break;
+            case DOREQUEST_READ_AGAIN:
+                r->do_request_state = DOREQUEST_READ;
+                return DO_REQUEST_READ_AGAIN;
+            case DOREQUEST_CLOSE:
+                r->do_request_state = DOREQUEST_READ;
                 return DO_REQUEST_CLOSE;
-            }
-            break;
-        } else if (nread == 0) {
-            // End of file. The remote has closed the connection.
-            return DO_REQUEST_CLOSE;
+            case DOREQUEST_LOOP:
+                break;
+            default:
+                break;
         }
-
-        r->buf_tail += nread;
-        ParseResult parse_result = parse(r);
-        if (parse_result == PARSE_RESULT_AGAIN) {
-            continue;
-        } else if (parse_result == PARSE_RESULT_INVALID) {
-            serve_error(r, 400);
-            return DO_REQUEST_CLOSE;
-        }
-
-        serve_static(r);
-        bool keep_alive = r->keep_alive;
-        r->clear();
-        if (!keep_alive)
-            return DO_REQUEST_CLOSE;
     }
-
-    return DO_REQUEST_AGAIN;
 }

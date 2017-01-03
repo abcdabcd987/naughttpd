@@ -39,7 +39,7 @@ void engine_epoll(int sfd, int backlog, int _) {
 
             if ((events[i].events & EPOLLERR) ||
                 (events[i].events & EPOLLHUP) ||
-                (!(events[i].events & EPOLLIN)))
+                (!(events[i].events & EPOLLIN) && !(events[i].events & EPOLLOUT)))
             {
                 // An error has occured on this fd, or the socket is not
                 // ready for reading (why were we notified then?)
@@ -58,6 +58,7 @@ void engine_epoll(int sfd, int backlog, int _) {
                     HTTPRequest *req = new HTTPRequest;
                     req->fd_socket = infd;
                     req->ngdata.fd_epoll = efd;
+                    req->do_request_state = 0;
                     event.data.ptr = static_cast<void*>(req);
                     event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
                     if (epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event) < 0) {
@@ -73,9 +74,12 @@ void engine_epoll(int sfd, int backlog, int _) {
                 // data.
                 DoRequestResult res = do_request(r);
                 switch (res) {
-                    case DO_REQUEST_AGAIN:
+                    case DO_REQUEST_READ_AGAIN:
+                    case DO_REQUEST_WRITE_AGAIN:
                         event.data.ptr = static_cast<void*>(r);
-                        event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+                        event.events = EPOLLET | EPOLLONESHOT;
+                        if (res == DO_REQUEST_READ_AGAIN) event.events |= EPOLLIN;
+                        if (res == DO_REQUEST_WRITE_AGAIN) event.events |= EPOLLOUT;
                         if (epoll_ctl(r->ngdata.fd_epoll, EPOLL_CTL_MOD, r->fd_socket, &event) < 0) {
                             perror("epoll_ctl");
                             abort();
