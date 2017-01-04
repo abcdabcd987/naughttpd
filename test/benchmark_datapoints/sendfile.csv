@@ -1,31 +1,31 @@
-engine,backlog,num_workers,reuseport,tcp_nodelay,tcp_cork,sendfile,concurrency,filename
-epoll,511,8,off,off,on,naive,400,1KB
-epoll,511,8,off,off,on,naive,400,10KB
-epoll,511,8,off,off,on,naive,400,100KB
-epoll,511,8,off,off,on,naive,400,1MB
-epoll,511,8,off,off,on,naive,400,10MB
-epoll,511,8,off,off,on,naive,400,50MB
-epoll,511,8,off,off,on,naive,400,100MB
-epoll,511,8,off,off,on,naive,400,200MB
-epoll,511,8,off,off,on,naive,400,500MB
-epoll,511,8,off,off,on,naive,400,1GB
-epoll,511,8,off,off,on,mmap,400,1KB
-epoll,511,8,off,off,on,mmap,400,10KB
-epoll,511,8,off,off,on,mmap,400,100KB
-epoll,511,8,off,off,on,mmap,400,1MB
-epoll,511,8,off,off,on,mmap,400,10MB
-epoll,511,8,off,off,on,mmap,400,50MB
-epoll,511,8,off,off,on,mmap,400,100MB
-epoll,511,8,off,off,on,mmap,400,200MB
-epoll,511,8,off,off,on,mmap,400,500MB
-epoll,511,8,off,off,on,mmap,400,1GB
-epoll,511,8,off,off,on,sendfile,400,1KB
-epoll,511,8,off,off,on,sendfile,400,10KB
-epoll,511,8,off,off,on,sendfile,400,100KB
-epoll,511,8,off,off,on,sendfile,400,1MB
-epoll,511,8,off,off,on,sendfile,400,10MB
-epoll,511,8,off,off,on,sendfile,400,50MB
-epoll,511,8,off,off,on,sendfile,400,100MB
-epoll,511,8,off,off,on,sendfile,400,200MB
-epoll,511,8,off,off,on,sendfile,400,500MB
-epoll,511,8,off,off,on,sendfile,400,1GB
+engine,backlog,num_workers,reuseport,tcp_nodelay,tcp_cork,sendfile,concurrency,chunks
+epoll,511,8,off,off,on,naive,400,35 10
+epoll,511,8,off,off,on,naive,400,35 14
+epoll,511,8,off,off,on,naive,400,35 17
+epoll,511,8,off,off,on,naive,400,35 20
+epoll,511,8,off,off,on,naive,400,35 24
+epoll,511,8,off,off,on,naive,400,35 26
+epoll,511,8,off,off,on,naive,400,35 27
+epoll,511,8,off,off,on,naive,400,35 28
+epoll,511,8,off,off,on,naive,400,35 29
+epoll,511,8,off,off,on,naive,400,35 30
+epoll,511,8,off,off,on,mmap,400,35 10
+epoll,511,8,off,off,on,mmap,400,35 14
+epoll,511,8,off,off,on,mmap,400,35 17
+epoll,511,8,off,off,on,mmap,400,35 20
+epoll,511,8,off,off,on,mmap,400,35 24
+epoll,511,8,off,off,on,mmap,400,35 26
+epoll,511,8,off,off,on,mmap,400,35 27
+epoll,511,8,off,off,on,mmap,400,35 28
+epoll,511,8,off,off,on,mmap,400,35 29
+epoll,511,8,off,off,on,mmap,400,35 30
+epoll,511,8,off,off,on,sendfile,400,35 10
+epoll,511,8,off,off,on,sendfile,400,35 14
+epoll,511,8,off,off,on,sendfile,400,35 17
+epoll,511,8,off,off,on,sendfile,400,35 20
+epoll,511,8,off,off,on,sendfile,400,35 24
+epoll,511,8,off,off,on,sendfile,400,35 26
+epoll,511,8,off,off,on,sendfile,400,35 27
+epoll,511,8,off,off,on,sendfile,400,35 28
+epoll,511,8,off,off,on,sendfile,400,35 29
+epoll,511,8,off,off,on,sendfile,400,35 30

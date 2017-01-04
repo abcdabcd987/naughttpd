@@ -1,6 +1,7 @@
 core
 .depend
 bin/
+data/
 
 # Created by https://www.gitignore.io/api/c++,macos
 
