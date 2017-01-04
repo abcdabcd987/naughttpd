@@ -4,7 +4,8 @@ function read_params()
     local f = io.open('/tmp/wrk_sendfile.txt')
     set_size = f:read('*number')
     chunk_size = f:read('*number')
-    chunks = bit.lshift(1, set_size - chunk_size)
+    max_chunks = f:read('*number')
+    chunks = math.min(bit.lshift(1, set_size - chunk_size), max_chunks)
     f:close()
 end
 

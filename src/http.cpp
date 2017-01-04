@@ -89,6 +89,7 @@ enum DoRequestState {
 };
 
 void do_request_read(HTTPRequest *r) {
+    // fprintf(stderr, "%s\n", r->uri.c_str());
     size_t buf_remain = HTTPRequest::BUF_SIZE - (r->buf_tail - r->buf_head) - 1;
     buf_remain = std::min(buf_remain, HTTPRequest::BUF_SIZE - r->buf_tail % HTTPRequest::BUF_SIZE);
     char *ptail = &r->buf[r->buf_tail % HTTPRequest::BUF_SIZE];
