@@ -38,7 +38,7 @@ HTTP Request 即客户端发送给服务器的请求。整体上来说，它可�
 
 下面举一个例子：
 
-```http
+```
 POST /acmcabbs/member.php?mod=logging&action=login HTTP/1.1
 Host: 202.120.38.22:1000
 Connection: keep-alive
@@ -74,7 +74,7 @@ HTTP Response 即为服务器响应客户端的数据。它与 HTTP Request 非�
 
 下面举两个例子，这两个例子中的主体内容是等价的：
 
-```http
+```
 HTTP/1.1 200 OK
 Date: Fri, 31 Dec 1999 23:59:59 GMT
 Content-Type: text/plain
@@ -90,7 +90,7 @@ another-footer: another-value
 
 ```
 
-```http
+```
 HTTP/1.1 200 OK
 Date: Fri, 31 Dec 1999 23:59:59 GMT
 Content-Type: text/plain
@@ -120,7 +120,7 @@ HTTP Keep-Alive 无疑可以加快载入网页的速度，提升用户体验，�
 
 最简单的 TCP 服务器，如同教科书上示范使用 socket 编程一样，就是使用 `accept()` 接受一个连接，之后处理这个连接相关的事务，直到最后关闭连接。
 
-```c
+```
 // serve forever
 for (;;) {
     // accept a connection
@@ -145,7 +145,7 @@ for (;;) {
 
 既然上面的做法无法同时服务多个连接，很自然的想法就是使用多进程。因为 `fork()` 创建子进程的时候会连同打开的文件描述符一起复制，而 socket 在 Linux 中也被当作文件对待，所以我们可以在接受一个连接之后，创建一个子进程来处理这个连接相关的事务，同时父进程继续等待接受其他连接。
 
-```c
+```
 // serve forever
 for (;;) {
     // accept a connection
@@ -176,7 +176,7 @@ for (;;) {
 
 既然进程的创建和销毁成本很大，那我们可以使用稍微轻量级一点的线程。
 
-```c
+```
 // deal with the connection, until it finishes
 void* work(void *arg) {
     int infd = (int)arg;
@@ -202,7 +202,7 @@ for (;;) {
 
 模型3相比模型2，降低了创建和销毁工人的开销。进一步地，我们还可以预先创建好一些线程，让他们长期运行。每当服务器接受了一个新的连接之后，将这个连接派发给其中一个工作线程来处理即可。
 
-```c
+```
 void work() {
     // work forever
     for (;;) {
@@ -237,7 +237,7 @@ for (;;) {
 
 在前面的伪代码中，我们都没有描写处理连接的过程。在处理连接的过程中，固然是包含了对请求资源的查找、计算等实实在在消耗 CPU 计算资源的工作，然而也包含了从客户端接收数据和往客户端发送数据的过程。写成伪代码类似于：
 
-```c
+```
 bool do_request(int infd) {
     // read the request
     Request req;
@@ -260,7 +260,7 @@ bool do_request(int infd) {
 
 很自然地我们可以想到，如果操作系统提供了非阻塞 I/O（Nonblocking I/O），那么我们完全可以在一个 I/O 操作进行的时候去做别的事情。以读取为例，我们希望调用 `read` 的时候，如果此时已经有数据在缓冲区中，程序可以直接拿到数据；如果此时缓冲区仍然是空的，那么系统应该告诉我们此时没有数据。这样一来，我们就可以腾出手去处理其他事情了。哪怕只有单线程，处理速度也很快。写成伪代码：
 
-```c
+```
 // file descriptors to be watched
 List<int> watch_fds;
 make_nonblocking(sfd);
@@ -310,7 +310,7 @@ for (;;) {
 
 实现 I/O 多路复用，最经典的接口就是 `select()`，它几乎在主流的操作系统上都有实现。`select()` 使用 `fd_set` 来指定要监听的文件描述符。因为文件描述符总是取最小的空闲的自然数，所以 `fd_set` 的实现相对简单，基本上来说都是使用 Bitmap。`select()` 的函数原型是
 
-```c
+```
 int select(int nfds,
            fd_set *readfds, fd_set *writefds, fd_set *errorfds,
            struct timeval *timeout)
@@ -322,7 +322,7 @@ int select(int nfds,
 
 使用 `select()` 的伪代码如下：
 
-```c
+```
 fd_set socks, readfds, exceptfds;
 make_non_blocking(sfd);
 
@@ -375,7 +375,7 @@ for (;;) {
 
 相比 `select()`，`poll()` 做了一点点小改进。
 
-```c
+```
 int poll(struct pollfd fds[], nfds_t nfds, int timeout);
 struct pollfd {
     int    fd;       /* file descriptor */
@@ -388,7 +388,7 @@ struct pollfd {
 
 可以看到 `poll()` 解决了 `select()` 的前两个问题：需要监听多少文件描述符就传入多大的数组，另外数组本身也可以不断地重用。整体上，使用 `poll()` 的代码与使用 `select()` 也非常接近：
 
-```c
+```
 make_non_blocking(sfd);
 struct pollfd *pollfds = (struct pollfd *)calloc(sizeof(struct pollfd), backlog);
 
@@ -436,7 +436,7 @@ for (;;) {
 
 `epoll` 是一个 Linux 上独有的机制，它类似于 `poll()`，但是它好在不但能告诉我们有多少事件发生了，还能准确地告诉我们事件是在哪些文件描述符上发生的。
 
-```c
+```
 int epoll_create1(int flags);
 int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
 int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
@@ -458,7 +458,7 @@ typedef union epoll_data {
 
 使用 `epoll` 的代码和前面两份代码非常类似，但不同的是，此时我们无须检查所有监视中的文件描述符，而只要处理那些有事件发生的即可。
 
-```c
+```
 make_non_blocking(sfd);
 struct epoll_event event;
 struct epoll_event *events = (struct epoll_event *)calloc(sizeof(struct epoll_event), backlog);
@@ -519,7 +519,7 @@ for (;;) {
 
 使用 I/O 多路复用后，HTTP Server 可以用上100%的CPU资源。因此，工作线程的数量大于CPU核心数量是没有意义的，反而会增加额外的开销。
 
-```c
+```
 void* work(void *args) {
     // run epoll engine described above
     engine_epoll(sfd);
@@ -547,7 +547,7 @@ for (int i = 0; i < num_worker; ++i)
 
 为什么要怎么做呢？在实践中，人们发现，当多个线程 `accept()` 同一个 socket 的时候，每个线程被分配到的任务的数量可能会非常不平均。使用 `SO_REUSEPORT`，内核可以保证各个进程被分配到的任务是均匀的。
 
-```c
+```
 // create workers
 for (int i = 0; i < num_worker; ++i) {
     if (fork() == 0) {
@@ -574,7 +574,7 @@ for (int i = 0; i < num_worker; ++i)
 
 在 HTTP Server 找到了请求的文件后，它要将文件发回给客户端。通常的做法就是打开文件，每次读取文件的一部分，再发送给客户。
 
-```c
+```
 struct stat stat;
 char buf[BUFSIZE];
 int srcfd = open(filename, O_RDONLY, 0);
@@ -589,7 +589,7 @@ for (ssize_t nwrite = 0; nwrite < stat.st_size; ) {
 
 使用 `mmap()` 可以将文件映射到虚拟地址空间中，如同访问数组一样，无须再多次调用 `read()`/`write()`。
 
-```c
+```
 struct stat stat;
 char buf[BUFSIZE];
 int srcfd = open(filename, O_RDONLY, 0);
@@ -606,7 +606,7 @@ munmap(srcaddr, sbuf.st_size);
 
 Linux 提供了一个非常好用的系统调用 `sendfile()` 可谓是一劳永逸。它让内核直接把内容从一个文件描述符搬运到另一个文件描述符。
 
-```c
+```
 struct stat stat;
 char buf[BUFSIZE];
 int srcfd = open(filename, O_RDONLY, 0);
@@ -623,7 +623,7 @@ close(srcfd);
 
 为了解决这个问题，很自然地想法就是在用户态进行字符串拼接，拼成完整的 HTTP Response Header 之后再进行一次 `write()`。注意到字符串拼接实际上相当于把每个字符串额外地复制了一份。如果我们想要避免这个额外的开销，我们可以使用 `writev()` 系统调用。
 
-```c
+```
 ssize_t writev(int fildes, const struct iovec *iov, int iovcnt);
 struct iovec {
     char   *iov_base;  /* Base address. */
